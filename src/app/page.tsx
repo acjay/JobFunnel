@@ -11,8 +11,10 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 import { ROOT_PAGE_ID, NOTION_TOKEN } from "./env";
 import {
+  asCreatedTimeProperty,
   asDateProperty,
   asNumberProperty,
+  asRelationProperty,
   asRichTextProperty,
   asSelectProperty,
   asStatusProperty,
@@ -22,7 +24,7 @@ import {
   richTextToString,
 } from "./helpers";
 import { notion } from "./notion";
-import { Opportunity } from "./lib/models";
+import { Opportunity, OpportunityEvent } from "./lib/models";
 import { MainPanel } from "./components/mainPanel";
 
 const MAIN_DATABASE_TITLE = "Job Tracker Main Database";
@@ -100,6 +102,25 @@ function databaseItemToTask(item: PageObjectResponse): Task {
   };
 }
 
+function databaseItemToEvent(item: PageObjectResponse): OpportunityEvent {
+  const description = richTextToString(
+    asTitleProperty(item.properties.Name).title
+  );
+  const opportunityId = asRelationProperty(item.properties["Company Name"])
+    .relation?.[0]?.id;
+  const timestamp = new Date(
+    asDateProperty(item.properties["Event Time"]).date?.start ??
+      asCreatedTimeProperty(item.properties["Created time"]).created_time
+  );
+  return {
+    id: item.id,
+    description: description ?? "",
+    opportunityId,
+    timestamp,
+    rawData: item,
+  };
+}
+
 async function getTrackerDatabase(
   rootPageBlocks: (BlockObjectResponse | PartialBlockObjectResponse)[],
   databaseTitle: string
@@ -140,10 +161,12 @@ export type FetchedNotionData = {
     databaseId: string;
     databaseItems: PageObjectResponse[];
   };
-  eventsDatabase: {
-    databaseTitle: string;
-    databaseId: string;
-    databaseItems: PageObjectResponse[];
+  eventsData: {
+    eventsDatabaseName: string;
+    eventsDatabaseId: string;
+    eventsDatabaseItems: PageObjectResponse[];
+    events: OpportunityEvent[];
+    eventsByOpportunityId: Record<string, OpportunityEvent[]>;
   };
 };
 async function getData(): Promise<FetchedNotionData> {
@@ -194,15 +217,38 @@ async function getData(): Promise<FetchedNotionData> {
       tasksDatabaseItems: tasksDatabase.databaseItems,
       activeTasks: tasksDatabase.databaseItems.map(databaseItemToTask),
     };
+
     const eventsDatabase = await getTrackerDatabase(
       blocksResponse,
       EVENTS_DATABASE_TITLE
     );
+    const events = eventsDatabase.databaseItems.map(databaseItemToEvent);
+    const eventsByOpportunityId = events.reduce<
+      Record<string, OpportunityEvent[]>
+    >((acc, item) => {
+      const opportunityId = item.opportunityId ?? "";
+      if (!acc[opportunityId]) {
+        acc[opportunityId] = [];
+      }
+      acc[opportunityId].push(item);
+      return acc;
+    }, {});
+    for (const opportunityId of Object.keys(eventsByOpportunityId)) {
+      const events = eventsByOpportunityId[opportunityId];
+      events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    }
+    const eventsData = {
+      eventsDatabaseName: eventsDatabase.databaseTitle,
+      eventsDatabaseId: eventsDatabase.databaseId,
+      eventsDatabaseItems: eventsDatabase.databaseItems,
+      events,
+      eventsByOpportunityId,
+    };
 
     return {
       opportunityData,
       tasksDatabase,
-      eventsDatabase,
+      eventsData,
     };
   }
 

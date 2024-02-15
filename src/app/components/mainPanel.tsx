@@ -12,8 +12,9 @@ export function MainPanel({ data }: { data: FetchedNotionData }) {
         <Tasks tasks={data.tasksDatabase?.databaseItems} />
         <Opportunities
           opportunitiesByStatus={data.opportunityData.opportunitiesByStatus}
+          eventsByOpportunityId={data.eventsData.eventsByOpportunityId}
           tasksDatabaseId={data.tasksDatabase.databaseId}
-          eventsDatabaseId={data.eventsDatabase.databaseId}
+          eventsDatabaseId={data.eventsData.eventsDatabaseId}
         />
       </main>
     </NextUIProvider>

@@ -1,4 +1,6 @@
 import {
+  Accordion,
+  AccordionItem,
   Avatar,
   Button,
   Card,
@@ -16,11 +18,13 @@ import {
   ModalFooter,
   ModalHeader,
   ScrollShadow,
+  Tooltip,
   useDisclosure,
 } from "@nextui-org/react";
-import { Opportunity } from "../lib/models";
+import { Opportunity, OpportunityEvent } from "../lib/models";
 import { useState } from "react";
 import { addEvent as addEventAction } from "../actions";
+import { formatDistance } from "date-fns";
 
 const ORDERED_STATUSES = [
   "Not started",
@@ -35,16 +39,20 @@ const ORDERED_STATUSES = [
 
 export const Opportunities = ({
   opportunitiesByStatus,
+  eventsByOpportunityId,
   tasksDatabaseId,
   eventsDatabaseId,
 }: {
   opportunitiesByStatus: Record<string, Opportunity[]>;
+  eventsByOpportunityId: Record<string, OpportunityEvent[]>;
   tasksDatabaseId: string;
   eventsDatabaseId: string;
 }) => {
   const [addEventModalIsOpen, setAddEventModalIsOpen] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<Opportunity | null>(null);
+
+  const now = new Date();
 
   function onCardMenuAction(
     action: React.Key,
@@ -142,7 +150,13 @@ export const Opportunities = ({
                           </Dropdown>
                         </CardHeader>
                         <Divider />
-                        <CardBody className="p-1">Lorem ipsum</CardBody>
+                        <CardBody className="p-1">
+                          <p>Lorem ipsum</p>
+                          <OpportunityEvents
+                            events={eventsByOpportunityId[opportunity.id] ?? []}
+                            now={now}
+                          />
+                        </CardBody>
                       </Card>
                     );
                   })}
@@ -161,6 +175,42 @@ export const Opportunities = ({
     </section>
   );
 };
+
+function OpportunityEvents({
+  events,
+  now,
+}: {
+  events: OpportunityEvent[];
+  now: Date;
+}) {
+  return (
+    <Accordion isCompact className="px-0" itemClasses={{ title: "text-xs" }}>
+      <AccordionItem key="1" aria-label="Events" title="Events">
+        <div className="max-h-64 overflow-y-scroll space-y-2">
+          {events.map((event) => (
+            <div key={event.id}>
+              <Tooltip
+                content={
+                  event.timestamp.toLocaleDateString() +
+                  " " +
+                  event.timestamp.toLocaleTimeString()
+                }
+                placement="top-start"
+                showArrow={true}
+                color="secondary"
+              >
+                <div className="text-xs text-slate-500 italic">
+                  {formatDistance(event.timestamp, now)}
+                </div>
+              </Tooltip>
+              <div className="text-sm">{event.description}</div>
+            </div>
+          ))}
+        </div>
+      </AccordionItem>
+    </Accordion>
+  );
+}
 
 function AddEventModal({
   isOpen,
