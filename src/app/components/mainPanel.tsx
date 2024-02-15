@@ -3,15 +3,17 @@ import * as React from "react";
 import { NextUIProvider } from "@nextui-org/system";
 import { Tasks } from "./tasks";
 import { Opportunities } from "./opportunities";
-import styles from "../page.module.css";
+import { FetchedNotionData } from "../page";
 
-export function MainPanel({ data }) {
+export function MainPanel({ data }: { data: FetchedNotionData }) {
   return (
     <NextUIProvider>
-      <main className={styles.main}>
-        <Tasks tasks={data?.tasksDatabase.databaseItems} />
+      <main className="flex w-screen h-screen p-1">
+        <Tasks tasks={data.tasksDatabase?.databaseItems} />
         <Opportunities
           opportunitiesByStatus={data.opportunityData.opportunitiesByStatus}
+          tasksDatabaseId={data.tasksDatabase.databaseId}
+          eventsDatabaseId={data.eventsDatabase.databaseId}
         />
       </main>
     </NextUIProvider>

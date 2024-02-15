@@ -19,8 +19,8 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { Opportunity } from "../lib/models";
-import styles from "../page.module.css";
 import { useState } from "react";
+import { addEvent as addEventAction } from "../actions";
 
 const ORDERED_STATUSES = [
   "Not started",
@@ -33,12 +33,14 @@ const ORDERED_STATUSES = [
   "Closed",
 ];
 
-function addEvent(opportunity: Opportunity) {}
-
 export const Opportunities = ({
   opportunitiesByStatus,
+  tasksDatabaseId,
+  eventsDatabaseId,
 }: {
   opportunitiesByStatus: Record<string, Opportunity[]>;
+  tasksDatabaseId: string;
+  eventsDatabaseId: string;
 }) => {
   const [addEventModalIsOpen, setAddEventModalIsOpen] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] =
@@ -50,6 +52,7 @@ export const Opportunities = ({
   ) {
     switch (action) {
       case "add_event":
+        setSelectedOpportunity(selectedOpportunity);
         setAddEventModalIsOpen(true);
         break;
       case "add_task":
@@ -151,7 +154,8 @@ export const Opportunities = ({
       </ScrollShadow>
       <AddEventModal
         isOpen={addEventModalIsOpen}
-        selectedOpportunity={opportunitiesByStatus["Not started"]?.[0]}
+        selectedOpportunity={selectedOpportunity}
+        eventDatabaseId={eventsDatabaseId}
         onOpenChange={(isOpen) => setAddEventModalIsOpen(isOpen)}
       />
     </section>
@@ -161,20 +165,33 @@ export const Opportunities = ({
 function AddEventModal({
   isOpen,
   selectedOpportunity,
+  eventDatabaseId,
   onOpenChange,
 }: {
   isOpen: boolean;
-  selectedOpportunity: Opportunity;
+  selectedOpportunity: Opportunity | null;
+  eventDatabaseId: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const [description, setDescription] = useState("");
 
-  const titleName =
-    selectedOpportunity.name +
-    (selectedOpportunity.title ? ` - ${selectedOpportunity.title}` : "");
+  const titleName = selectedOpportunity
+    ? selectedOpportunity.name +
+      (selectedOpportunity.title ? ` - ${selectedOpportunity.title}` : "")
+    : "<no opportunity selected>";
 
   async function persistEvent(onClose: () => void) {
-    alert("Persisting event");
+    if (selectedOpportunity) {
+      const result = await addEventAction(
+        eventDatabaseId,
+        selectedOpportunity,
+        description,
+        new Date()
+      );
+      console.log("persistEvent result", result);
+    } else {
+      alert("Somehow, selectedOpportunity is null. This should not happen.");
+    }
     onClose();
   }
 
@@ -182,7 +199,7 @@ function AddEventModal({
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalContent>
         {(onClose) => (
-          <form onSubmit={() => persistEvent(onClose)}>
+          <form action={() => persistEvent(onClose)}>
             <ModalHeader className="flex flex-col gap-1">
               Add Event for {titleName}
             </ModalHeader>

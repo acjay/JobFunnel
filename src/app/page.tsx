@@ -21,17 +21,13 @@ import {
   logged,
   richTextToString,
 } from "./helpers";
+import { notion } from "./notion";
 import { Opportunity } from "./lib/models";
 import { MainPanel } from "./components/mainPanel";
 
 const MAIN_DATABASE_TITLE = "Job Tracker Main Database";
 const TASKS_DATABASE_TITLE = "Job Tracker Tasks";
 const EVENTS_DATABASE_TITLE = "Job Tracker Events";
-
-// Initializing a client
-const notion = new Client({
-  auth: NOTION_TOKEN,
-});
 
 function databaseItemToOpporunity(item: PageObjectResponse): Opportunity {
   // console.dir(item, { depth: null });
@@ -131,7 +127,26 @@ async function getTrackerDatabase(
   };
 }
 
-async function getData() {
+export type FetchedNotionData = {
+  opportunityData: {
+    opportunityDatabaseName: string;
+    opportunityDatabaseId: string;
+    opportunityDatabaseItems: PageObjectResponse[];
+    opportunities: Opportunity[];
+    opportunitiesByStatus: Record<string, Opportunity[]>;
+  };
+  tasksDatabase: {
+    databaseTitle: string;
+    databaseId: string;
+    databaseItems: PageObjectResponse[];
+  };
+  eventsDatabase: {
+    databaseTitle: string;
+    databaseId: string;
+    databaseItems: PageObjectResponse[];
+  };
+};
+async function getData(): Promise<FetchedNotionData> {
   const response = await notion.pages.retrieve({ page_id: ROOT_PAGE_ID });
   if (isFullPage(response)) {
     // console.dir(response, { depth: null });
