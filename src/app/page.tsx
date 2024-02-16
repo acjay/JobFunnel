@@ -59,6 +59,8 @@ function databaseItemToOpporunity(item: PageObjectResponse): Opportunity {
   const logoDomain = richTextToString(
     asRichTextProperty(item.properties["Logo domain"]).rich_text
   );
+  const orderingKey =
+    asNumberProperty(item.properties["Ordering key"])?.number ?? 0;
   try {
     return {
       id: item.id,
@@ -70,6 +72,7 @@ function databaseItemToOpporunity(item: PageObjectResponse): Opportunity {
       listedRangeTop,
       listedRangeBottom,
       logoDomain,
+      orderingKey,
       rawData: item,
     };
   } catch (e) {
@@ -153,7 +156,7 @@ export type FetchedNotionData = {
     opportunityDatabaseName: string;
     opportunityDatabaseId: string;
     opportunityDatabaseItems: PageObjectResponse[];
-    opportunities: Opportunity[];
+    opportunitiesOrdered: Opportunity[];
     opportunitiesByStatus: Record<string, Opportunity[]>;
   };
   tasksDatabase: {
@@ -188,15 +191,16 @@ async function getData(): Promise<FetchedNotionData> {
       blocksResponse,
       MAIN_DATABASE_TITLE
     );
-    const opportunities = mainDatabase.databaseItems.map(
+    const opportunitiesOrdered = mainDatabase.databaseItems.map(
       databaseItemToOpporunity
     );
+    opportunitiesOrdered.sort((a, b) => a.orderingKey - b.orderingKey);
     const opportunityData = {
       opportunityDatabaseName: mainDatabase.databaseTitle,
       opportunityDatabaseId: mainDatabase.databaseId,
       opportunityDatabaseItems: mainDatabase.databaseItems,
-      opportunities,
-      opportunitiesByStatus: opportunities.reduce<
+      opportunitiesOrdered,
+      opportunitiesByStatus: opportunitiesOrdered.reduce<
         Record<string, Opportunity[]>
       >((acc, item) => {
         const status = item.status;

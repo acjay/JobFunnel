@@ -21,10 +21,17 @@ import {
   Tooltip,
   useDisclosure,
 } from "@nextui-org/react";
+import {
+  DragDropContext,
+  Draggable,
+  DropResult,
+  Droppable,
+} from "react-beautiful-dnd";
 import { Opportunity, OpportunityEvent } from "../lib/models";
 import { useState } from "react";
 import { addEvent as addEventAction } from "../actions";
 import { formatDistance } from "date-fns";
+import { StrictModeDroppable } from "./strictModeDroppable";
 
 const ORDERED_STATUSES = [
   "Not started",
@@ -39,11 +46,13 @@ const ORDERED_STATUSES = [
 
 export const Opportunities = ({
   opportunitiesByStatus,
+  opportunitiesOrdered,
   eventsByOpportunityId,
   tasksDatabaseId,
   eventsDatabaseId,
 }: {
   opportunitiesByStatus: Record<string, Opportunity[]>;
+  opportunitiesOrdered: Opportunity[];
   eventsByOpportunityId: Record<string, OpportunityEvent[]>;
   tasksDatabaseId: string;
   eventsDatabaseId: string;
@@ -74,98 +83,198 @@ export const Opportunities = ({
     }
   }
 
+  function onDragEnd(result: DropResult) {
+    // Dropped outside the list
+    if (!result.destination) {
+      return;
+    }
+
+    const sourceStatus = result.source.droppableId;
+    const destinationStatus = result.destination.droppableId;
+    const soureIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+    const opportunityId = result.draggableId;
+
+    if (sourceStatus !== destinationStatus) {
+      // Update the status of the opportunity in the database
+      console.log(
+        `Move opportunity ${opportunityId} from ${sourceStatus} to ${destinationStatus}`
+      );
+    }
+
+    // if (result.source.index === result.destination.index) {
+    //   return;
+    // }
+
+    // We want to calculate an ordering key that puts the moved opportunity
+    // between the adjacent opportunities in the destination status. But,
+    // this could collide with an ordering key outside the destination status,
+    // if these opportunities are not adjacent in the global ordering.
+    // So, we'll place it halfway between the previous opportunity and the next
+    // opportunity in the global ordering, which will have an ordering key
+    // less than or equal to that of the next opportunity in the destination
+    // status.
+
+    const prevOpportunityInStatus =
+      opportunitiesByStatus[destinationStatus]?.[destinationIndex - 1];
+    const nextOpportunityInStatus =
+      opportunitiesByStatus[destinationStatus]?.[destinationIndex];
+    const prevOpportunity =
+      prevOpportunityInStatus ??
+      opportunitiesOrdered[
+        opportunitiesOrdered.findIndex(
+          (o) => o.id === nextOpportunityInStatus.id
+        ) - 1
+      ];
+    const prevOpportunityIndex = opportunitiesOrdered.findIndex(
+      (o) => o.id === prevOpportunity?.id
+    );
+    const nextOpportunity = opportunitiesOrdered[prevOpportunityIndex + 1];
+
+    const prevOrderingKey =
+      prevOpportunity?.orderingKey ?? opportunitiesOrdered[0].orderingKey - 1;
+
+    const nextOrderingKey =
+      nextOpportunity?.orderingKey ??
+      opportunitiesOrdered[opportunitiesOrdered.length - 1].orderingKey + 1;
+    const newOrderingKey = (prevOrderingKey + nextOrderingKey) / 2;
+
+    console.log({
+      destinationStatus,
+      prevOpportunity,
+      prevOpportunityInStatus,
+      nextOpportunity,
+      nextOpportunityInStatus,
+      prevOrderingKey,
+      nextOrderingKey,
+      newOrderingKey,
+    });
+
+    // Reorder the opportunity in the database
+    // const insertAfterIndex = console.log(
+    //   `Move opportunity ${opportunityId} from ${sourceStatus} to ${destinationStatus}`
+    // );
+  }
+
   return (
     <section className="overflow-scroll">
-      <ScrollShadow orientation="horizontal">
-        <ScrollShadow orientation="vertical">
-          <h2>Opportunities</h2>
-          <div className="flex space-x-3">
-            {ORDERED_STATUSES.map((status) => (
-              <div key={status}>
-                <div className="flex justify-between mb-2 p-1">
-                  <h3 className="text-">{status}</h3>
-                  <span className="text-xs">
-                    {opportunitiesByStatus[status]?.length ?? 0}
-                  </span>
-                </div>
-
-                <div className="w-[300px] space-y-2">
-                  {opportunitiesByStatus[status]?.map((opportunity) => {
-                    const logoUrl =
-                      opportunity.type === "Connection"
-                        ? "/Generic_friend_style_2.png"
-                        : opportunity.logoDomain
-                        ? `https://logo.clearbit.com/${opportunity.logoDomain}`
-                        : "/Generic_company_style_2.png";
-                    const logoAlt = opportunity.logoDomain
-                      ? `${opportunity.name} logo`
-                      : "Generic logo";
-                    return (
-                      <Card key={opportunity.id} className="rounded-md p-1">
-                        <CardHeader className="flex p-1">
-                          <img
-                            src={logoUrl}
-                            alt={logoAlt}
-                            className="w-10 h-10 rounded-md border-gray-900 border-1"
-                          />
-                          {/* <Avatar
-                            isBordered
-                            className="rounded"
-                            src={logoUrl}
-                            alt={logoAlt}
-                          /> */}
-                          <div className="grow ml-2">
-                            <div className="text-sm font-semibold">
-                              {opportunity.name}
-                            </div>
-                            <div className="text-xs">{opportunity.title}</div>
-                          </div>
-                          <Dropdown>
-                            <DropdownTrigger>
-                              <Button
-                                isIconOnly
-                                variant="bordered"
-                                size="sm"
-                                className="shrink rounded-md p-0"
-                              >
-                                …
-                              </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu
-                              aria-label="Static Actions"
-                              onAction={(key) =>
-                                onCardMenuAction(key, opportunity)
-                              }
-                            >
-                              <DropdownItem key="add_event">
-                                Add Event
-                              </DropdownItem>
-                              <DropdownItem key="add_task">
-                                Add Task
-                              </DropdownItem>
-                              <DropdownItem key="edit_fields">
-                                Edit Fields
-                              </DropdownItem>
-                            </DropdownMenu>
-                          </Dropdown>
-                        </CardHeader>
-                        <Divider />
-                        <CardBody className="p-1">
-                          <p>Lorem ipsum</p>
-                          <OpportunityEvents
-                            events={eventsByOpportunityId[opportunity.id] ?? []}
-                            now={now}
-                          />
-                        </CardBody>
-                      </Card>
-                    );
-                  })}
-                </div>
+      <h2>Opportunities</h2>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="flex space-x-3">
+          {ORDERED_STATUSES.map((status) => (
+            <div key={status}>
+              <div className="flex justify-between mb-2 p-1">
+                <h3 className="text-">{status}</h3>
+                <span className="text-xs">
+                  {opportunitiesByStatus[status]?.length ?? 0}
+                </span>
               </div>
-            ))}
-          </div>
-        </ScrollShadow>
-      </ScrollShadow>
+              <StrictModeDroppable droppableId={status}>
+                {({ innerRef, droppableProps, placeholder }) => (
+                  <div
+                    className="w-[300px] space-y-2"
+                    ref={innerRef}
+                    {...droppableProps}
+                  >
+                    {opportunitiesByStatus[status]?.map(
+                      (opportunity, opportunityIdx) => {
+                        const logoUrl =
+                          opportunity.type === "Connection"
+                            ? "/Generic_friend_style_2.png"
+                            : opportunity.logoDomain
+                            ? `https://logo.clearbit.com/${opportunity.logoDomain}`
+                            : "/Generic_company_style_2.png";
+                        const logoAlt = opportunity.logoDomain
+                          ? `${opportunity.name} logo`
+                          : "Generic logo";
+
+                        return (
+                          <div key={opportunity.id}>
+                            <Draggable
+                              draggableId={opportunity.id}
+                              index={opportunityIdx}
+                            >
+                              {(provided) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                >
+                                  <Card
+                                    // key={opportunity.id}
+                                    className="rounded-md p-1"
+                                  >
+                                    <CardHeader className="flex p-1">
+                                      <img
+                                        src={logoUrl}
+                                        alt={logoAlt}
+                                        className="w-10 h-10 rounded-md border-gray-900 border-1"
+                                      />
+                                      <div className="grow ml-2">
+                                        <div className="text-sm font-semibold">
+                                          {opportunity.name}
+                                        </div>
+                                        <div className="text-xs">
+                                          {opportunity.title}
+                                        </div>
+                                      </div>
+                                      <Dropdown>
+                                        <DropdownTrigger>
+                                          <Button
+                                            isIconOnly
+                                            variant="bordered"
+                                            size="sm"
+                                            className="shrink rounded-md p-0"
+                                          >
+                                            …
+                                          </Button>
+                                        </DropdownTrigger>
+                                        <DropdownMenu
+                                          aria-label="Static Actions"
+                                          onAction={(key) =>
+                                            onCardMenuAction(key, opportunity)
+                                          }
+                                        >
+                                          <DropdownItem key="add_event">
+                                            Add Event
+                                          </DropdownItem>
+                                          <DropdownItem key="add_task">
+                                            Add Task
+                                          </DropdownItem>
+                                          <DropdownItem key="edit_fields">
+                                            Edit Fields
+                                          </DropdownItem>
+                                        </DropdownMenu>
+                                      </Dropdown>
+                                    </CardHeader>
+                                    <Divider />
+                                    <CardBody className="p-1">
+                                      <p>Lorem ipsum</p>
+                                      <OpportunityEvents
+                                        events={
+                                          eventsByOpportunityId[
+                                            opportunity.id
+                                          ] ?? []
+                                        }
+                                        now={now}
+                                      />
+                                    </CardBody>
+                                  </Card>
+                                </div>
+                              )}
+                            </Draggable>
+                          </div>
+                        );
+                      }
+                    )}
+                    {placeholder}
+                  </div>
+                )}
+              </StrictModeDroppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
       <AddEventModal
         isOpen={addEventModalIsOpen}
         selectedOpportunity={selectedOpportunity}

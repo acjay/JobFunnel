@@ -10,6 +10,7 @@ export type Opportunity = {
   listedRangeTop: number | null;
   listedRangeBottom: number | null;
   logoDomain: string | null;
+  orderingKey: number;
   rawData: PageObjectResponse;
 };
 
