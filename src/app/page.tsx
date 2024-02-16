@@ -26,6 +26,7 @@ import {
 import { notion } from "./notion";
 import { Opportunity, OpportunityEvent } from "./lib/models";
 import { MainPanel } from "./components/mainPanel";
+import { useState } from "react";
 
 const MAIN_DATABASE_TITLE = "Job Tracker Main Database";
 const TASKS_DATABASE_TITLE = "Job Tracker Tasks";
@@ -260,6 +261,7 @@ async function getData(): Promise<FetchedNotionData> {
 }
 
 export default async function Home() {
-  const data = await getData();
-  return <MainPanel data={data} />;
+  const initData = await getData();
+  const [data, setData] = useState(initData);
+  return <MainPanel data={data} setData={setData} />;
 }

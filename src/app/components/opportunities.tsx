@@ -26,12 +26,11 @@ import {
   Draggable,
   DropResult,
   Droppable,
-} from "react-beautiful-dnd";
+} from "@hello-pangea/dnd";
 import { Opportunity, OpportunityEvent } from "../lib/models";
 import { useState } from "react";
 import { addEvent as addEventAction } from "../actions";
 import { formatDistance } from "date-fns";
-import { StrictModeDroppable } from "./strictModeDroppable";
 
 const ORDERED_STATUSES = [
   "Not started",
@@ -86,6 +85,7 @@ export const Opportunities = ({
   function onDragEnd(result: DropResult) {
     // Dropped outside the list
     if (!result.destination) {
+      console.log(`Dropped card outside the list`, result);
       return;
     }
 
@@ -95,11 +95,20 @@ export const Opportunities = ({
     const destinationIndex = result.destination.index;
     const opportunityId = result.draggableId;
 
-    if (sourceStatus !== destinationStatus) {
-      // Update the status of the opportunity in the database
-      console.log(
-        `Move opportunity ${opportunityId} from ${sourceStatus} to ${destinationStatus}`
+    const opportunity = opportunitiesOrdered.find(
+      (o) => o.id === opportunityId
+    );
+
+    if (!opportunity) {
+      console.error(
+        `Could not find opportunity with id ${opportunityId} in the ordered opportunities`
       );
+      return;
+    }
+
+    if (sourceStatus === destinationStatus && soureIndex === destinationIndex) {
+      console.log("No change");
+      return;
     }
 
     // if (result.source.index === result.destination.index) {
@@ -140,6 +149,7 @@ export const Opportunities = ({
     const newOrderingKey = (prevOrderingKey + nextOrderingKey) / 2;
 
     console.log({
+      opportunity,
       destinationStatus,
       prevOpportunity,
       prevOpportunityInStatus,
@@ -169,7 +179,7 @@ export const Opportunities = ({
                   {opportunitiesByStatus[status]?.length ?? 0}
                 </span>
               </div>
-              <StrictModeDroppable droppableId={status}>
+              <Droppable droppableId={status}>
                 {({ innerRef, droppableProps, placeholder }) => (
                   <div
                     className="w-[300px] space-y-2"
@@ -270,7 +280,7 @@ export const Opportunities = ({
                     {placeholder}
                   </div>
                 )}
-              </StrictModeDroppable>
+              </Droppable>
             </div>
           ))}
         </div>
