@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FetchedNotionData, getData } from "./actions";
 import * as React from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import { NextUIProvider } from "@nextui-org/system";
+import { FetchedNotionData, getData } from "./actions";
 import { Tasks } from "./components/tasks";
 import { Opportunities } from "./components/opportunities";
 
@@ -131,7 +132,11 @@ export default function Home() {
 
   return (
     <NextUIProvider>
-      <main className="flex w-screen h-screen p-2 space-x-2">
+      <menu className="flex items-center bg-white">
+        <Image src="/logo.webp" alt="logo" width={40} height={40} />
+        <h1 className="text-2xl font-bold italic px-2">jobfunnel</h1>
+      </menu>
+      <main className="flex w-screen h-[calc(100vh-40px)] p-2 space-x-2">
         <Tasks tasks={data.tasksDatabase?.databaseItems} />
         <Opportunities
           opportunitiesByStatus={data.opportunityData.opportunitiesByStatus}

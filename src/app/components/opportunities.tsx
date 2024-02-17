@@ -1,3 +1,5 @@
+import { useState } from "react";
+import Image from "next/image";
 import {
   Accordion,
   AccordionItem,
@@ -28,7 +30,6 @@ import {
   Droppable,
 } from "@hello-pangea/dnd";
 import { Opportunity, OpportunityEvent } from "../lib/models";
-import { useState } from "react";
 import { addEvent as addEventAction } from "../actions";
 import { formatDistance } from "date-fns";
 
@@ -144,7 +145,6 @@ export const Opportunities = ({
 
   return (
     <section className="overflow-scroll">
-      <h2>Opportunities</h2>
       <DragDropContext
         onBeforeDragStart={() => {
           console.time("onBeforeDragStart");
@@ -204,10 +204,13 @@ export const Opportunities = ({
                                       className="rounded-md p-1"
                                     >
                                       <CardHeader className="flex p-1">
-                                        <img
+                                        <Image
                                           src={logoUrl}
                                           alt={logoAlt}
+                                          width={40}
+                                          height={40}
                                           className="w-10 h-10 rounded-md border-gray-900 border-1"
+                                          unoptimized
                                         />
                                         <div className="grow ml-2">
                                           <div className="text-sm font-semibold">
