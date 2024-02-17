@@ -43,20 +43,62 @@ const ORDERED_STATUSES = [
   "Closed",
 ];
 
+function useOpportunityEventsOpenState(
+  opportunitiesOrdered: Opportunity[]
+): [
+  Record<string, boolean>,
+  (opportunityId: string, open: boolean) => void,
+  () => void
+] {
+  const [isEventsOpenByOpportunityId, setIsEventsOpenByOpportunityId] =
+    useState<Record<string, boolean>>(
+      Object.fromEntries(opportunitiesOrdered.map((o) => [o.id, false]))
+    );
+
+  function setOpenEventsForOpporunity(opportunityId: string, open: boolean) {
+    setIsEventsOpenByOpportunityId((prev) => ({
+      ...prev,
+      [opportunityId]: open,
+    }));
+  }
+
+  function closeAllEvents() {
+    setIsEventsOpenByOpportunityId(
+      Object.fromEntries(opportunitiesOrdered.map((o) => [o.id, false]))
+    );
+  }
+
+  return [
+    isEventsOpenByOpportunityId,
+    setOpenEventsForOpporunity,
+    closeAllEvents,
+  ];
+}
+
 export const Opportunities = ({
   opportunitiesByStatus,
   opportunitiesOrdered,
   eventsByOpportunityId,
   tasksDatabaseId,
   eventsDatabaseId,
+  moveCard,
 }: {
   opportunitiesByStatus: Record<string, Opportunity[]>;
   opportunitiesOrdered: Opportunity[];
   eventsByOpportunityId: Record<string, OpportunityEvent[]>;
   tasksDatabaseId: string;
   eventsDatabaseId: string;
+  moveCard: (
+    sourceStatus: string,
+    sourceIndex: number,
+    destinationStatus: string,
+    destinationIndex: number,
+    opportunityId: string
+  ) => void;
 }) => {
   const [addEventModalIsOpen, setAddEventModalIsOpen] = useState(false);
+  const [isEventsOpenByOpportunityId, openEventsForOpporunity] =
+    useOpportunityEventsOpenState(opportunitiesOrdered);
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<Opportunity | null>(null);
 
@@ -82,94 +124,30 @@ export const Opportunities = ({
     }
   }
 
-  function onDragEnd(result: DropResult) {
+  async function onDragEnd(result: DropResult) {
     // Dropped outside the list
     if (!result.destination) {
       console.log(`Dropped card outside the list`, result);
       return;
     }
 
-    const sourceStatus = result.source.droppableId;
-    const destinationStatus = result.destination.droppableId;
-    const soureIndex = result.source.index;
-    const destinationIndex = result.destination.index;
-    const opportunityId = result.draggableId;
-
-    const opportunity = opportunitiesOrdered.find(
-      (o) => o.id === opportunityId
+    await moveCard(
+      result.source.droppableId,
+      result.source.index,
+      result.destination.droppableId,
+      result.destination.index,
+      result.draggableId
     );
-
-    if (!opportunity) {
-      console.error(
-        `Could not find opportunity with id ${opportunityId} in the ordered opportunities`
-      );
-      return;
-    }
-
-    if (sourceStatus === destinationStatus && soureIndex === destinationIndex) {
-      console.log("No change");
-      return;
-    }
-
-    // if (result.source.index === result.destination.index) {
-    //   return;
-    // }
-
-    // We want to calculate an ordering key that puts the moved opportunity
-    // between the adjacent opportunities in the destination status. But,
-    // this could collide with an ordering key outside the destination status,
-    // if these opportunities are not adjacent in the global ordering.
-    // So, we'll place it halfway between the previous opportunity and the next
-    // opportunity in the global ordering, which will have an ordering key
-    // less than or equal to that of the next opportunity in the destination
-    // status.
-
-    const prevOpportunityInStatus =
-      opportunitiesByStatus[destinationStatus]?.[destinationIndex - 1];
-    const nextOpportunityInStatus =
-      opportunitiesByStatus[destinationStatus]?.[destinationIndex];
-    const prevOpportunity =
-      prevOpportunityInStatus ??
-      opportunitiesOrdered[
-        opportunitiesOrdered.findIndex(
-          (o) => o.id === nextOpportunityInStatus.id
-        ) - 1
-      ];
-    const prevOpportunityIndex = opportunitiesOrdered.findIndex(
-      (o) => o.id === prevOpportunity?.id
-    );
-    const nextOpportunity = opportunitiesOrdered[prevOpportunityIndex + 1];
-
-    const prevOrderingKey =
-      prevOpportunity?.orderingKey ?? opportunitiesOrdered[0].orderingKey - 1;
-
-    const nextOrderingKey =
-      nextOpportunity?.orderingKey ??
-      opportunitiesOrdered[opportunitiesOrdered.length - 1].orderingKey + 1;
-    const newOrderingKey = (prevOrderingKey + nextOrderingKey) / 2;
-
-    console.log({
-      opportunity,
-      destinationStatus,
-      prevOpportunity,
-      prevOpportunityInStatus,
-      nextOpportunity,
-      nextOpportunityInStatus,
-      prevOrderingKey,
-      nextOrderingKey,
-      newOrderingKey,
-    });
-
-    // Reorder the opportunity in the database
-    // const insertAfterIndex = console.log(
-    //   `Move opportunity ${opportunityId} from ${sourceStatus} to ${destinationStatus}`
-    // );
   }
 
   return (
     <section className="overflow-scroll">
       <h2>Opportunities</h2>
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext
+        onBeforeDragStart={() => console.log("onBeforeDragStart", new Date())}
+        onDragStart={() => console.log("onDragStart", new Date())}
+        onDragEnd={onDragEnd}
+      >
         <div className="flex space-x-3">
           {ORDERED_STATUSES.map((status) => (
             <div key={status}>
@@ -266,6 +244,17 @@ export const Opportunities = ({
                                             opportunity.id
                                           ] ?? []
                                         }
+                                        isOpen={
+                                          isEventsOpenByOpportunityId[
+                                            opportunity.id
+                                          ]
+                                        }
+                                        setEventsOpen={(open) =>
+                                          openEventsForOpporunity(
+                                            opportunity.id,
+                                            open
+                                          )
+                                        }
                                         now={now}
                                       />
                                     </CardBody>
@@ -297,13 +286,27 @@ export const Opportunities = ({
 
 function OpportunityEvents({
   events,
+  isOpen,
+  setEventsOpen,
   now,
 }: {
   events: OpportunityEvent[];
+  isOpen: boolean;
+  setEventsOpen: (open: boolean) => void;
   now: Date;
 }) {
-  return (
-    <Accordion isCompact className="px-0" itemClasses={{ title: "text-xs" }}>
+  return events.length === 0 ? (
+    <div className="py-2 text-xs">No events</div>
+  ) : (
+    <Accordion
+      isCompact
+      selectedKeys={isOpen ? "all" : []}
+      onSelectionChange={(keys) =>
+        setEventsOpen(keys === "all" || keys.size > 0)
+      }
+      className="px-0"
+      itemClasses={{ title: "text-xs" }}
+    >
       <AccordionItem key="1" aria-label="Events" title="Events">
         <div className="max-h-64 overflow-y-scroll space-y-2">
           {events.map((event) => (
@@ -319,7 +322,7 @@ function OpportunityEvents({
                 color="secondary"
               >
                 <div className="text-xs text-slate-500 italic">
-                  {formatDistance(event.timestamp, now)}
+                  {formatDistance(event.timestamp, now) + " ago"}
                 </div>
               </Tooltip>
               <div className="text-sm">{event.description}</div>
