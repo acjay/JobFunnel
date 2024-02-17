@@ -130,6 +130,7 @@ async function getTrackerDatabase(
   rootPageBlocks: (BlockObjectResponse | PartialBlockObjectResponse)[],
   databaseTitle: string
 ) {
+  console.time(`getTrackerDatabase: ${databaseTitle}`);
   // console.log(`Fetching ${databaseTitle}...`);
   const databaseId = rootPageBlocks.find(
     (block) =>
@@ -146,6 +147,9 @@ async function getTrackerDatabase(
     })
   ).filter(isFullPage);
   // console.dir(databaseItems, { depth: null });
+
+  console.timeEnd(`getTrackerDatabase: ${databaseTitle}`);
+
   return {
     databaseTitle,
     databaseId,
@@ -175,90 +179,98 @@ export type FetchedNotionData = {
   };
 };
 export async function getData(): Promise<FetchedNotionData> {
-  const response = await notion.pages.retrieve({ page_id: ROOT_PAGE_ID });
-  if (isFullPage(response)) {
-    // console.dir(response, { depth: null });
+  console.time("getData");
 
-    // Get all of the child blocks in the page
-    const blocksResponse = await collectPaginatedAPI(
-      notion.blocks.children.list,
-      {
-        block_id: ROOT_PAGE_ID,
-      }
-    );
-    // console.dir(blocksResponse, { depth: null });
-
-    // Pull out the 3 core databases
-    const mainDatabase = await getTrackerDatabase(
-      blocksResponse,
-      MAIN_DATABASE_TITLE
-    );
-    const opportunitiesOrdered = mainDatabase.databaseItems.map(
-      databaseItemToOpporunity
-    );
-    opportunitiesOrdered.sort((a, b) => a.orderingKey - b.orderingKey);
-    const opportunityData = {
-      opportunityDatabaseName: mainDatabase.databaseTitle,
-      opportunityDatabaseId: mainDatabase.databaseId,
-      opportunityDatabaseItems: mainDatabase.databaseItems,
-      opportunitiesOrdered,
-      opportunitiesByStatus: opportunitiesOrdered.reduce<
-        Record<string, Opportunity[]>
-      >((acc, item) => {
-        const status = item.status;
-        if (!acc[status]) {
-          acc[status] = [];
-        }
-        acc[status].push(item);
-        return acc;
-      }, {}),
-    };
-    const tasksDatabase = await getTrackerDatabase(
-      blocksResponse,
-      TASKS_DATABASE_TITLE
-    );
-    const tasksData = {
-      tasksDatabaseName: tasksDatabase.databaseTitle,
-      tasksDatabaseId: tasksDatabase.databaseId,
-      tasksDatabaseItems: tasksDatabase.databaseItems,
-      activeTasks: tasksDatabase.databaseItems.map(databaseItemToTask),
-    };
-
-    const eventsDatabase = await getTrackerDatabase(
-      blocksResponse,
-      EVENTS_DATABASE_TITLE
-    );
-    const events = eventsDatabase.databaseItems.map(databaseItemToEvent);
-    const eventsByOpportunityId = events.reduce<
-      Record<string, OpportunityEvent[]>
-    >((acc, item) => {
-      const opportunityId = item.opportunityId ?? "";
-      if (!acc[opportunityId]) {
-        acc[opportunityId] = [];
-      }
-      acc[opportunityId].push(item);
-      return acc;
-    }, {});
-    for (const opportunityId of Object.keys(eventsByOpportunityId)) {
-      const events = eventsByOpportunityId[opportunityId];
-      events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  // Get all of the child blocks in the root page
+  // TODO: If I add a central database, I can store the database IDs there
+  // after the user's first load and then skip this step thereafter.
+  console.time("notion.blocks.children.list: root page");
+  const blocksResponse = await collectPaginatedAPI(
+    notion.blocks.children.list,
+    {
+      block_id: ROOT_PAGE_ID,
     }
-    const eventsData = {
-      eventsDatabaseName: eventsDatabase.databaseTitle,
-      eventsDatabaseId: eventsDatabase.databaseId,
-      eventsDatabaseItems: eventsDatabase.databaseItems,
-      events,
-      eventsByOpportunityId,
-    };
+  );
+  console.timeEnd("notion.blocks.children.list: root page");
+  // console.dir(blocksResponse, { depth: null });
 
-    return {
-      opportunityData,
-      tasksDatabase,
-      eventsData,
-    };
+  // Pull out the 3 core databases
+  const mainDatabasePromise = getTrackerDatabase(
+    blocksResponse,
+    MAIN_DATABASE_TITLE
+  );
+  const tasksDatabasePromise = getTrackerDatabase(
+    blocksResponse,
+    TASKS_DATABASE_TITLE
+  );
+  const eventsDatabasePromise = getTrackerDatabase(
+    blocksResponse,
+    EVENTS_DATABASE_TITLE
+  );
+  const [mainDatabase, tasksDatabase, eventsDatabase] = await Promise.all([
+    mainDatabasePromise,
+    tasksDatabasePromise,
+    eventsDatabasePromise,
+  ]);
+
+  const opportunitiesOrdered = mainDatabase.databaseItems.map(
+    databaseItemToOpporunity
+  );
+  opportunitiesOrdered.sort((a, b) => a.orderingKey - b.orderingKey);
+  const opportunityData = {
+    opportunityDatabaseName: mainDatabase.databaseTitle,
+    opportunityDatabaseId: mainDatabase.databaseId,
+    opportunityDatabaseItems: mainDatabase.databaseItems,
+    opportunitiesOrdered,
+    opportunitiesByStatus: opportunitiesOrdered.reduce<
+      Record<string, Opportunity[]>
+    >((acc, item) => {
+      const status = item.status;
+      if (!acc[status]) {
+        acc[status] = [];
+      }
+      acc[status].push(item);
+      return acc;
+    }, {}),
+  };
+
+  const tasksData = {
+    tasksDatabaseName: tasksDatabase.databaseTitle,
+    tasksDatabaseId: tasksDatabase.databaseId,
+    tasksDatabaseItems: tasksDatabase.databaseItems,
+    activeTasks: tasksDatabase.databaseItems.map(databaseItemToTask),
+  };
+
+  const events = eventsDatabase.databaseItems.map(databaseItemToEvent);
+  const eventsByOpportunityId = events.reduce<
+    Record<string, OpportunityEvent[]>
+  >((acc, item) => {
+    const opportunityId = item.opportunityId ?? "";
+    if (!acc[opportunityId]) {
+      acc[opportunityId] = [];
+    }
+    acc[opportunityId].push(item);
+    return acc;
+  }, {});
+  for (const opportunityId of Object.keys(eventsByOpportunityId)) {
+    const events = eventsByOpportunityId[opportunityId];
+    events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
+  const eventsData = {
+    eventsDatabaseName: eventsDatabase.databaseTitle,
+    eventsDatabaseId: eventsDatabase.databaseId,
+    eventsDatabaseItems: eventsDatabase.databaseItems,
+    events,
+    eventsByOpportunityId,
+  };
 
-  throw new Error("Could not retrieve data from Notion");
+  console.timeEnd("getData");
+
+  return {
+    opportunityData,
+    tasksDatabase,
+    eventsData,
+  };
 }
 
 export async function addEvent(

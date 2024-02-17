@@ -32,6 +32,8 @@ import { useState } from "react";
 import { addEvent as addEventAction } from "../actions";
 import { formatDistance } from "date-fns";
 
+const DEBUG_CARDS = false;
+
 const ORDERED_STATUSES = [
   "Not started",
   "Prioritized",
@@ -144,8 +146,12 @@ export const Opportunities = ({
     <section className="overflow-scroll">
       <h2>Opportunities</h2>
       <DragDropContext
-        onBeforeDragStart={() => console.log("onBeforeDragStart", new Date())}
-        onDragStart={() => console.log("onDragStart", new Date())}
+        onBeforeDragStart={() => {
+          console.time("onBeforeDragStart");
+        }}
+        onDragStart={() => {
+          console.timeEnd("onBeforeDragStart");
+        }}
         onDragEnd={onDragEnd}
       >
         <div className="flex space-x-3">
@@ -188,77 +194,83 @@ export const Opportunities = ({
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
                                 >
-                                  <Card
-                                    // key={opportunity.id}
-                                    className="rounded-md p-1"
-                                  >
-                                    <CardHeader className="flex p-1">
-                                      <img
-                                        src={logoUrl}
-                                        alt={logoAlt}
-                                        className="w-10 h-10 rounded-md border-gray-900 border-1"
-                                      />
-                                      <div className="grow ml-2">
-                                        <div className="text-sm font-semibold">
-                                          {opportunity.name}
+                                  {DEBUG_CARDS ? (
+                                    <div className="h-[200px] border border-black rounded-md bg-white p-1">
+                                      <h3>TEST</h3>
+                                    </div>
+                                  ) : (
+                                    <Card
+                                      // key={opportunity.id}
+                                      className="rounded-md p-1"
+                                    >
+                                      <CardHeader className="flex p-1">
+                                        <img
+                                          src={logoUrl}
+                                          alt={logoAlt}
+                                          className="w-10 h-10 rounded-md border-gray-900 border-1"
+                                        />
+                                        <div className="grow ml-2">
+                                          <div className="text-sm font-semibold">
+                                            {opportunity.name}
+                                          </div>
+                                          <div className="text-xs">
+                                            {opportunity.title}
+                                          </div>
                                         </div>
-                                        <div className="text-xs">
-                                          {opportunity.title}
-                                        </div>
-                                      </div>
-                                      <Dropdown>
-                                        <DropdownTrigger>
-                                          <Button
-                                            isIconOnly
-                                            variant="bordered"
-                                            size="sm"
-                                            className="shrink rounded-md p-0"
+                                        <Dropdown>
+                                          <DropdownTrigger>
+                                            <Button
+                                              isIconOnly
+                                              variant="bordered"
+                                              size="sm"
+                                              className="shrink rounded-md p-0"
+                                            >
+                                              …
+                                            </Button>
+                                          </DropdownTrigger>
+                                          <DropdownMenu
+                                            aria-label="Static Actions"
+                                            onAction={(key) =>
+                                              onCardMenuAction(key, opportunity)
+                                            }
                                           >
-                                            …
-                                          </Button>
-                                        </DropdownTrigger>
-                                        <DropdownMenu
-                                          aria-label="Static Actions"
-                                          onAction={(key) =>
-                                            onCardMenuAction(key, opportunity)
+                                            <DropdownItem key="add_event">
+                                              Add Event
+                                            </DropdownItem>
+                                            <DropdownItem key="add_task">
+                                              Add Task
+                                            </DropdownItem>
+                                            <DropdownItem key="edit_fields">
+                                              Edit Fields
+                                            </DropdownItem>
+                                          </DropdownMenu>
+                                        </Dropdown>
+                                      </CardHeader>
+                                      <Divider />
+                                      <CardBody className="p-1">
+                                        <p>Lorem ipsum</p>
+                                        <OpportunityEvents
+                                          events={
+                                            eventsByOpportunityId[
+                                              opportunity.id
+                                            ] ?? []
                                           }
-                                        >
-                                          <DropdownItem key="add_event">
-                                            Add Event
-                                          </DropdownItem>
-                                          <DropdownItem key="add_task">
-                                            Add Task
-                                          </DropdownItem>
-                                          <DropdownItem key="edit_fields">
-                                            Edit Fields
-                                          </DropdownItem>
-                                        </DropdownMenu>
-                                      </Dropdown>
-                                    </CardHeader>
-                                    <Divider />
-                                    <CardBody className="p-1">
-                                      <p>Lorem ipsum</p>
-                                      <OpportunityEvents
-                                        events={
-                                          eventsByOpportunityId[
-                                            opportunity.id
-                                          ] ?? []
-                                        }
-                                        isOpen={
-                                          isEventsOpenByOpportunityId[
-                                            opportunity.id
-                                          ]
-                                        }
-                                        setEventsOpen={(open) =>
-                                          openEventsForOpporunity(
-                                            opportunity.id,
-                                            open
-                                          )
-                                        }
-                                        now={now}
-                                      />
-                                    </CardBody>
-                                  </Card>
+                                          isOpen={
+                                            isEventsOpenByOpportunityId[
+                                              opportunity.id
+                                            ]
+                                          }
+                                          setEventsOpen={(open) =>
+                                            openEventsForOpporunity(
+                                              opportunity.id,
+                                              open
+                                            )
+                                          }
+                                          now={now}
+                                        />
+                                      </CardBody>
+                                    </Card>
+                                  )}
                                 </div>
                               )}
                             </Draggable>

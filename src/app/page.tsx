@@ -131,7 +131,7 @@ export default function Home() {
 
   return (
     <NextUIProvider>
-      <main className="flex w-screen h-screen p-1">
+      <main className="flex w-screen h-screen p-2 space-x-2">
         <Tasks tasks={data.tasksDatabase?.databaseItems} />
         <Opportunities
           opportunitiesByStatus={data.opportunityData.opportunitiesByStatus}
