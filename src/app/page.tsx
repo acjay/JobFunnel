@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import { NextUIProvider } from "@nextui-org/system";
 import { FetchedNotionData, getData } from "./actions";
 import { Tasks } from "./components/tasks";
@@ -10,6 +11,7 @@ import { Opportunities } from "./components/opportunities";
 
 export default function Home() {
   const [data, setData] = useState<FetchedNotionData>();
+  const { user, error, isLoading } = useUser();
 
   useEffect(() => {
     async function fetchData() {
@@ -126,27 +128,35 @@ export default function Home() {
     });
   }
 
-  if (!data) {
-    return null;
-  }
-
   return (
     <NextUIProvider>
       <menu className="flex items-center bg-white">
         <Image src="/logo.webp" alt="logo" width={40} height={40} />
         <h1 className="text-2xl font-bold italic px-2">jobfunnel</h1>
+        <div className="grow px-2 text-right">
+          {user ? (
+            <span>
+              Hi, {user.name} (<a href="/api/auth/logout">Logout</a>)
+            </span>
+          ) : (
+            <a href="/api/auth/login">Login</a>
+          )}
+        </div>
       </menu>
-      <main className="flex w-screen h-[calc(100vh-40px)] p-2 space-x-2">
-        <Tasks tasks={data.tasksDatabase?.databaseItems} />
-        <Opportunities
-          opportunitiesByStatus={data.opportunityData.opportunitiesByStatus}
-          opportunitiesOrdered={data.opportunityData.opportunitiesOrdered}
-          eventsByOpportunityId={data.eventsData.eventsByOpportunityId}
-          tasksDatabaseId={data.tasksDatabase.databaseId}
-          eventsDatabaseId={data.eventsData.eventsDatabaseId}
-          moveCard={moveCard}
-        />
-      </main>
+
+      {data && user && (
+        <main className="flex w-screen h-[calc(100vh-40px)] p-2 space-x-2">
+          <Tasks tasks={data.tasksDatabase?.databaseItems} />
+          <Opportunities
+            opportunitiesByStatus={data.opportunityData.opportunitiesByStatus}
+            opportunitiesOrdered={data.opportunityData.opportunitiesOrdered}
+            eventsByOpportunityId={data.eventsData.eventsByOpportunityId}
+            tasksDatabaseId={data.tasksDatabase.databaseId}
+            eventsDatabaseId={data.eventsData.eventsDatabaseId}
+            moveCard={moveCard}
+          />
+        </main>
+      )}
     </NextUIProvider>
   );
 }
