@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import Image from "next/image";
 import {
@@ -31,7 +33,7 @@ import {
 } from "@hello-pangea/dnd";
 import { Opportunity, OpportunityEvent } from "../lib/models";
 import { addEvent as addEventAction } from "../actions";
-import { formatDistance } from "date-fns";
+import { formatDistance, set } from "date-fns";
 
 const DEBUG_CARDS = false;
 
@@ -79,33 +81,127 @@ function useOpportunityEventsOpenState(
 }
 
 export const Opportunities = ({
-  opportunitiesByStatus,
-  opportunitiesOrdered,
+  initialOpportunitiesByStatus,
+  initialOpportunitiesOrdered,
   eventsByOpportunityId,
   tasksDatabaseId,
   eventsDatabaseId,
-  moveCard,
 }: {
-  opportunitiesByStatus: Record<string, Opportunity[]>;
-  opportunitiesOrdered: Opportunity[];
+  initialOpportunitiesByStatus: Record<string, Opportunity[]>;
+  initialOpportunitiesOrdered: Opportunity[];
   eventsByOpportunityId: Record<string, OpportunityEvent[]>;
   tasksDatabaseId: string;
   eventsDatabaseId: string;
-  moveCard: (
+}) => {
+  const [opportunitiesByStatus, setOpportunitiesByStatus] = useState(
+    initialOpportunitiesByStatus
+  );
+  const [opportunitiesOrdered, setOpportunitiesOrdered] = useState(
+    initialOpportunitiesOrdered
+  );
+  const [addEventModalIsOpen, setAddEventModalIsOpen] = useState(false);
+  const [isEventsOpenByOpportunityId, openEventsForOpporunity] =
+    useOpportunityEventsOpenState(initialOpportunitiesOrdered);
+  const [selectedOpportunity, setSelectedOpportunity] =
+    useState<Opportunity | null>(null);
+
+  const now = new Date();
+
+  function moveCard(
     sourceStatus: string,
     sourceIndex: number,
     destinationStatus: string,
     destinationIndex: number,
     opportunityId: string
-  ) => void;
-}) => {
-  const [addEventModalIsOpen, setAddEventModalIsOpen] = useState(false);
-  const [isEventsOpenByOpportunityId, openEventsForOpporunity] =
-    useOpportunityEventsOpenState(opportunitiesOrdered);
-  const [selectedOpportunity, setSelectedOpportunity] =
-    useState<Opportunity | null>(null);
+  ) {
+    const opportunity = opportunitiesOrdered.find(
+      (o) => o.id === opportunityId
+    );
 
-  const now = new Date();
+    if (!opportunity) {
+      console.error(
+        `Could not find opportunity with id ${opportunityId} in the ordered opportunities`
+      );
+      return;
+    }
+
+    if (
+      sourceStatus === destinationStatus &&
+      sourceIndex === destinationIndex
+    ) {
+      console.log("No change");
+      return;
+    }
+
+    // if (result.source.index === result.destination.index) {
+    //   return;
+    // }
+
+    // We want to calculate an ordering key that puts the moved opportunity
+    // between the adjacent opportunities in the destination status. But,
+    // this could collide with an ordering key outside the destination status,
+    // if these opportunities are not adjacent in the global ordering.
+    // So, we'll place it halfway between the previous opportunity and the next
+    // opportunity in the global ordering, which will have an ordering key
+    // less than or equal to that of the next opportunity in the destination
+    // status.
+
+    const prevOpportunityInStatus =
+      opportunitiesByStatus[destinationStatus]?.[destinationIndex - 1];
+    const nextOpportunityInStatus =
+      opportunitiesByStatus[destinationStatus]?.[destinationIndex];
+    const prevOpportunity =
+      prevOpportunityInStatus ??
+      opportunitiesOrdered[
+        opportunitiesOrdered.findIndex(
+          (o) => o.id === nextOpportunityInStatus.id
+        ) - 1
+      ];
+    const prevOpportunityIndex = opportunitiesOrdered.findIndex(
+      (o) => o.id === prevOpportunity?.id
+    );
+    const nextOpportunity = opportunitiesOrdered[prevOpportunityIndex + 1];
+
+    const prevOrderingKey =
+      prevOpportunity?.orderingKey ?? opportunitiesOrdered[0].orderingKey - 1;
+
+    const nextOrderingKey =
+      nextOpportunity?.orderingKey ??
+      opportunitiesOrdered[opportunitiesOrdered.length - 1].orderingKey + 1;
+    const newOrderingKey = (prevOrderingKey + nextOrderingKey) / 2;
+
+    console.log({
+      opportunity,
+      destinationStatus,
+      prevOpportunity,
+      prevOpportunityInStatus,
+      nextOpportunity,
+      nextOpportunityInStatus,
+      prevOrderingKey,
+      nextOrderingKey,
+      newOrderingKey,
+    });
+
+    // Move the opportunity to its new spot in the in-memory state
+    let newOpportunitiesByStatus = structuredClone(opportunitiesByStatus);
+    newOpportunitiesByStatus[sourceStatus] = newOpportunitiesByStatus[
+      sourceStatus
+    ].toSpliced(sourceIndex, 1);
+    newOpportunitiesByStatus[destinationStatus] = newOpportunitiesByStatus[
+      destinationStatus
+    ].toSpliced(destinationIndex, 0, opportunity);
+    setOpportunitiesByStatus(newOpportunitiesByStatus);
+
+    // Set the new ordering key and reorder the opportunities
+    const newOpportunitiesOrdered = [
+      ...opportunitiesOrdered.filter((o) => o.id !== opportunityId),
+      { ...opportunity, orderingKey: newOrderingKey },
+    ].sort((a, b) => a.orderingKey - b.orderingKey);
+    setOpportunitiesOrdered(newOpportunitiesOrdered);
+
+    // TODO: call server action to persist the change in ordering key and
+    // status
+  }
 
   function onCardMenuAction(
     action: React.Key,
@@ -160,7 +256,7 @@ export const Opportunities = ({
               <div className="flex justify-between mb-2 p-1">
                 <h3 className="text-">{status}</h3>
                 <span className="text-xs">
-                  {opportunitiesByStatus[status]?.length ?? 0}
+                  {initialOpportunitiesByStatus[status]?.length ?? 0}
                 </span>
               </div>
               <Droppable droppableId={status}>
@@ -170,7 +266,7 @@ export const Opportunities = ({
                     ref={innerRef}
                     {...droppableProps}
                   >
-                    {opportunitiesByStatus[status]?.map(
+                    {initialOpportunitiesByStatus[status]?.map(
                       (opportunity, opportunityIdx) => {
                         const logoUrl =
                           opportunity.type === "Connection"
