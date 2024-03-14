@@ -1,12 +1,12 @@
+"use client";
+
 import { Button } from "@nextui-org/react";
 import SetupBody from "./SetupBody";
 import { redirect } from "next/navigation";
+import { unlinkFromNotion } from "./actions";
 
-export default function SuccessfullConnected({
-  resetNotionConnection,
-}: {
-  resetNotionConnection: () => Promise<void>;
-}) {
+export default function SuccessfullConnected() {
+  // TODO: show links to the databases and root page in Notion.
   return (
     <SetupBody
       headerContents="Setup is complete"
@@ -25,7 +25,7 @@ export default function SuccessfullConnected({
               if (
                 confirm("Are you sure you want to reset the Notion connection?")
               ) {
-                await resetNotionConnection();
+                await unlinkFromNotion();
                 redirect("/setup?unlinked=true");
               }
             }}

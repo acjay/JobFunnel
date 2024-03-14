@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   Accordion,
   AccordionItem,
-  Avatar,
   Button,
   Card,
   CardBody,
@@ -21,9 +20,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  ScrollShadow,
   Tooltip,
-  useDisclosure,
 } from "@nextui-org/react";
 import {
   DragDropContext,
@@ -84,14 +81,10 @@ export const Opportunities = ({
   initialOpportunitiesByStatus,
   initialOpportunitiesOrdered,
   eventsByOpportunityId,
-  tasksDatabaseId,
-  eventsDatabaseId,
 }: {
   initialOpportunitiesByStatus: Record<string, Opportunity[]>;
   initialOpportunitiesOrdered: Opportunity[];
   eventsByOpportunityId: Record<string, OpportunityEvent[]>;
-  tasksDatabaseId: string;
-  eventsDatabaseId: string;
 }) => {
   const [opportunitiesByStatus, setOpportunitiesByStatus] = useState(
     initialOpportunitiesByStatus
@@ -388,7 +381,6 @@ export const Opportunities = ({
       <AddEventModal
         isOpen={addEventModalIsOpen}
         selectedOpportunity={selectedOpportunity}
-        eventDatabaseId={eventsDatabaseId}
         onOpenChange={(isOpen) => setAddEventModalIsOpen(isOpen)}
       />
     </section>
@@ -448,12 +440,10 @@ function OpportunityEvents({
 function AddEventModal({
   isOpen,
   selectedOpportunity,
-  eventDatabaseId,
   onOpenChange,
 }: {
   isOpen: boolean;
   selectedOpportunity: Opportunity | null;
-  eventDatabaseId: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const [description, setDescription] = useState("");
@@ -466,7 +456,6 @@ function AddEventModal({
   async function persistEvent(onClose: () => void) {
     if (selectedOpportunity) {
       const result = await addEventAction(
-        eventDatabaseId,
         selectedOpportunity,
         description,
         new Date()

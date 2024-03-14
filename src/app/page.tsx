@@ -10,19 +10,6 @@ import NoUserSplash from "./components/NoUserSplash";
 import { getSession } from "@auth0/nextjs-auth0";
 
 export default async function Home() {
-  // const [data, setData] = useState<FetchedNotionData>();
-  // const { user, error, isLoading } = useUser();
-
-  // useEffect(() => {
-  //   async function fetchData() {
-  //     const newData = await getData();
-  //     setData(newData);
-  //   }
-  //   if (user) {
-  //     fetchData();
-  //   }
-  // }, [user]);
-
   const session = await getSession();
   const user = session?.user;
 
@@ -30,16 +17,16 @@ export default async function Home() {
     return <NoUserSplash />;
   }
 
-  const notionConnection = await getNotionConnection(user.sub);
+  const notionConnection = await getNotionConnection(session);
   if (notionConnection.integrationState !== "connected") {
     redirect("/setup");
   }
 
   const data = await getData(
     notionConnection.notionClient,
-    notionConnection.opportunitiesDatabaseId,
-    notionConnection.tasksDatabaseId,
-    notionConnection.eventsDatabaseId
+    notionConnection.opportunityDatabaseId,
+    notionConnection.taskDatabaseId,
+    notionConnection.eventDatabaseId
   );
 
   return (
@@ -51,8 +38,6 @@ export default async function Home() {
         }
         initialOpportunitiesOrdered={data.opportunityData.opportunitiesOrdered}
         eventsByOpportunityId={data.eventData.eventsByOpportunityId}
-        tasksDatabaseId={data.taskData.databaseId}
-        eventsDatabaseId={data.eventData.databaseId}
       />
     </main>
   );

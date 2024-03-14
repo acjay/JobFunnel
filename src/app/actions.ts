@@ -4,7 +4,6 @@ import { Opportunity } from "./lib/models";
 import { getNotionConnection } from "./notion";
 
 export async function addEvent(
-  eventsDatabaseId: string,
   opportunity: Opportunity,
   description: string,
   date: Date
@@ -17,7 +16,7 @@ export async function addEvent(
   return await notionConnecton.notionClient.pages.create({
     parent: {
       type: "database_id",
-      database_id: eventsDatabaseId,
+      database_id: notionConnecton.eventDatabaseId,
     },
     properties: {
       Name: {

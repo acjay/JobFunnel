@@ -1,10 +1,14 @@
-"use server";
-
 import { Button } from "@nextui-org/react";
 import SetupBody from "./SetupBody";
-import { NOTION_OAUTH_AUTH_URL } from "../env";
+import { BASE_URL, NOTION_OAUTH_CLIENT_ID } from "../env";
 
 export default function LinkToNotion() {
+  const callbackUrl = encodeURI(`${BASE_URL}/setup/link-to-notion-callback`);
+  const notionLinkUrl =
+    "https://api.notion.com/v1/oauth/authorize" +
+    `?owner=user&client_id=${NOTION_OAUTH_CLIENT_ID}` +
+    `&redirect_uri=${callbackUrl}&response_type=code`;
+
   return (
     <SetupBody
       headerContents="Jobfunnel Setup"
@@ -30,7 +34,7 @@ export default function LinkToNotion() {
         </>
       }
       footerContents={
-        <a href={NOTION_OAUTH_AUTH_URL} className="w-full">
+        <a href={notionLinkUrl} className="w-full">
           <Button color="primary">Get started!</Button>
         </a>
       }

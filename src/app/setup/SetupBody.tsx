@@ -24,7 +24,9 @@ export default function SetupBody({
         <Divider />
         <CardBody className="prose">{bodyContents}</CardBody>
         <Divider />
-        <CardFooter className="prose text-center">{footerContents}</CardFooter>
+        <CardFooter className="flex space-x-3 prose text-center">
+          {footerContents}
+        </CardFooter>
       </Card>
     </div>
   );

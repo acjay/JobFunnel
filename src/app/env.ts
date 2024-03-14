@@ -18,6 +18,18 @@ if (process.env.AUTH0_CLIENT_SECRET === undefined) {
 }
 export const AUTH0_CLIENT_SECRET: string = process.env.AUTH0_CLIENT_SECRET;
 
+if (process.env.AUTH0_NOTION_SETUP_REDIRECT_SECRET === undefined) {
+  throw new Error("AUTH0_NOTION_SETUP_REDIRECT_SECRET is not defined");
+}
+export const AUTH0_NOTION_SETUP_REDIRECT_SECRET: string =
+  process.env.AUTH0_NOTION_SETUP_REDIRECT_SECRET;
+
+if (process.env.AUTH0_LOGIN_STATE_COOKIE === undefined) {
+  throw new Error("AUTH0_LOGIN_STATE_COOKIE is not defined");
+}
+export const AUTH0_LOGIN_STATE_COOKIE: string =
+  process.env.AUTH0_LOGIN_STATE_COOKIE;
+
 if (process.env.NOTION_OAUTH_CLIENT_ID === undefined) {
   throw new Error("NOTION_OAUTH_CLIENT_ID is not defined");
 }
