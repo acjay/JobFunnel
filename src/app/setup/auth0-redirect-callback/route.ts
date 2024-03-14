@@ -3,6 +3,9 @@ import jwt from "jsonwebtoken";
 import { AUTH0_NOTION_SETUP_REDIRECT_SECRET } from "@/app/env";
 import { cookies } from "next/headers";
 
+// TODO: Set the cookie in middleware instead of in the route handler,
+// in order to avoid the need for an intermediate route.
+
 /**
  * This route receives the callback from Auth0's Redirect to Notion setup
  * Action, which happens if the user logs in but hasn't yet linked to
