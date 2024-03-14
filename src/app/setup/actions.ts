@@ -28,7 +28,7 @@ export async function unlinkFromNotion(): Promise<void> {
     clientSecret: AUTH0_CLIENT_SECRET,
   });
 
-  const updateResult = await userManagementClient.u+++++++++++++++sers.update(
+  const updateResult = await userManagementClient.users.update(
     { id: session.user.sub },
     { user_metadata: { notionSetupConfirmed: false } }
   );
